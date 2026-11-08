@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Iluminação G11</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root { --bg:#141b2b; --card:#1b2438; --fg:#e8ecf5; --mut:#8c97b2; --lamp:#ffd45e; --line:#2c3650; }
+  * { box-sizing:border-box; }
+  body { margin:0; min-height:100vh; padding:32px 20px; background:var(--bg); color:var(--fg);
+    font-family:'Bricolage Grotesque',system-ui,sans-serif; }
+  main { width:100%; max-width:820px; margin:0 auto; text-align:center; }
+  h1 { font-size:30px; font-weight:800; margin:0 0 4px; }
+  .sub { color:var(--mut); margin:0 0 28px; }
+  .hide { display:none !important; }
+  .estreito { max-width:380px; margin:0 auto; }
+
+  form { display:grid; gap:12px; text-align:left; }
+  input { font:inherit; padding:13px 14px; border-radius:10px; border:1px solid var(--line);
+    background:var(--card); color:var(--fg); }
+  input:focus-visible, button:focus-visible { outline:3px solid var(--lamp); outline-offset:2px; }
+  .primary { font:inherit; font-weight:600; padding:13px; border:0; border-radius:10px;
+    background:var(--lamp); color:#2a2312; cursor:pointer; }
+  .link { background:none; border:0; color:var(--mut); font:inherit; cursor:pointer;
+    text-decoration:underline; margin-top:12px; }
+  #msg { min-height:22px; margin-top:12px; color:#ff9b8a; }
+  .aviso { line-height:1.5; margin:0 0 8px; }
+
+  /* Grade das 6 luzes */
+  .grade { display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:16px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:16px; padding:18px;
+    display:grid; gap:14px; justify-items:center; transition:box-shadow .4s, border-color .4s; }
+  .card.on { border-color:#ffe9a8; box-shadow:0 0 44px 4px rgba(255,212,94,.28); }
+  .card h2 { margin:0; font-size:19px; font-weight:600; }
+  .lamp { width:104px; height:104px; border-radius:50%; border:3px solid var(--line);
+    background:#222d47; color:var(--mut); font:inherit; font-weight:600; font-size:15px;
+    cursor:pointer; transition:all .4s; padding:8px; }
+  .card.on .lamp { background:var(--lamp); border-color:#ffe9a8; color:#2a2312;
+    box-shadow:0 0 36px 8px rgba(255,212,94,.45); }
+  .lamp:disabled { cursor:not-allowed; opacity:.7; }
+  .seg { display:grid; grid-template-columns:1fr 1fr; width:100%; border:1px solid var(--line);
+    border-radius:10px; overflow:hidden; }
+  .seg button { font:inherit; font-weight:600; font-size:14px; padding:9px; border:0;
+    background:transparent; color:var(--mut); cursor:pointer; }
+  .seg button.sel { background:var(--lamp); color:#2a2312; }
+  .info { color:var(--mut); font-size:14px; line-height:1.5; min-height:42px; }
+  .dot { display:inline-block; width:9px; height:9px; border-radius:50%; background:#c0504d; margin-right:7px; }
+  .dot.ok { background:#5fcf80; }
+
+  .tempo { width:100%; display:grid; gap:6px; text-align:left; font-size:13px; color:var(--mut);
+    border-top:1px solid var(--line); padding-top:12px; }
+  .tempo .linha { display:flex; gap:6px; }
+  .tempo input { width:100%; min-width:0; padding:8px 10px; font-size:14px; }
+  .tempo .mini { flex-shrink:0; }
+  #erroApp { color:#ff9b8a; margin-top:14px; min-height:20px; }
+
+  /* Painel do admin */
+  #painelAdmin { margin:36px auto 0; padding-top:20px; border-top:1px solid var(--line);
+    text-align:left; max-width:520px; }
+  #painelAdmin h2 { font-size:18px; margin:0 0 12px; }
+  .usr { display:flex; align-items:center; justify-content:space-between; gap:10px;
+    padding:10px 0; border-bottom:1px solid var(--line); font-size:15px; }
+  .usr .quem { overflow-wrap:anywhere; }
+  .usr small { display:block; color:var(--mut); }
+  .acoes { display:flex; gap:6px; flex-shrink:0; }
+  .mini { font:inherit; font-size:14px; font-weight:600; padding:7px 11px; border-radius:8px;
+    border:1px solid var(--line); background:transparent; color:var(--fg); cursor:pointer; }
+  .mini.ok { background:var(--lamp); border-color:var(--lamp); color:#2a2312; }
+  .vazio { color:var(--mut); }
+  @media (prefers-reduced-motion:reduce) { * { transition:none !important; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Iluminação G11</h1>
+  <p class="sub" id="sub">Entre para controlar a iluminação</p>
+
+  <!-- LOGIN -->
+  <section id="telaLogin" class="estreito">
+    <form id="formLogin">
+      <input id="email" type="email" placeholder="E-mail" autocomplete="email" required>
+      <input id="senha" type="password" placeholder="Senha (mín. 6 caracteres)" autocomplete="current-password" required minlength="6">
+      <button class="primary" id="btnEntrar" type="submit">Entrar</button>
+    </form>
+    <button class="link" id="alternar" type="button">Criar uma conta</button>
+    <div id="msg" role="alert"></div>
+  </section>
+
+  <!-- CONTROLE DAS 6 LUZES -->
+  <section id="telaApp" class="hide">
+    <div class="grade" id="grade"></div>
+    <div id="erroApp" role="alert"></div>
+    <div id="painelAdmin" class="hide">
+      <h2 id="tituloAdmin">Cadastros</h2>
+      <div id="listaUsuarios"></div>
+    </div>
+    <button class="link" id="sair" type="button">Sair</button>
+  </section>
+
+  <!-- AGUARDANDO APROVAÇÃO / RECUSADO -->
+  <section id="telaEspera" class="hide estreito">
+    <p class="aviso" id="msgEspera"></p>
+    <button class="link" id="sairEspera" type="button">Sair</button>
+  </section>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
+<script>
+  // As chaves NÃO ficam neste arquivo: vêm do config.js, gerado no build
+  // a partir do .env (local) ou das variáveis de ambiente da Vercel.
+  const SUPABASE_URL = window.CONFIG && window.CONFIG.SUPABASE_URL;
+  const SUPABASE_ANON_KEY = window.CONFIG && window.CONFIG.SUPABASE_KEY;
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    document.body.textContent = 'Configuração do Supabase ausente (config.js). Rode: node build.js';
+    throw new Error('config.js ausente');
+  }
+
+  // [id usado no banco e no ESP32, nome exibido]
+  const COMODOS = [
+    ['quarto1', 'Quarto 1'], ['quarto2', 'Quarto 2'], ['banheiro', 'Banheiro'],
+    ['garagem', 'Garagem'], ['cozinha', 'Cozinha'], ['sala', 'Sala de Estar']
+  ];
+
+  const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  const $ = id => document.getElementById(id);
+
+  const cmd = {};   // comando por cômodo
+  const st = {};    // status real por cômodo
+  const refs = {};  // elementos de cada cartão
+  let criandoConta = false;
+  let canal = null;
+  let perfilAtual = null;
+
+  const cmdDe = id => cmd[id] || { modo: 'manual', luz: false };
+  const online = id => st[id] && st[id].visto_em && (Date.now() - new Date(st[id].visto_em).getTime()) < 20000;
+  const luzAtual = id => online(id) ? st[id].luz : cmdDe(id).luz;
+
+  // ---------- Cartões das luzes ----------
+  function construirCards() {
+    $('grade').textContent = '';
+    COMODOS.forEach(([id, nome]) => {
+      const card = document.createElement('div');
+      card.className = 'card';
+
+      const h = document.createElement('h2');
+      h.textContent = nome;
+
+      const lamp = document.createElement('button');
+      lamp.type = 'button';
+      lamp.className = 'lamp';
+      lamp.onclick = () => enviar(id, { luz: !cmdDe(id).luz });
+
+      const seg = document.createElement('div');
+      seg.className = 'seg';
+      seg.setAttribute('role', 'group');
+      seg.setAttribute('aria-label', 'Modo: ' + nome);
+      const btnAuto = document.createElement('button');
+      btnAuto.type = 'button';
+      btnAuto.textContent = 'Automático';
+      btnAuto.onclick = () => enviar(id, { modo: 'auto' });
+      const btnManual = document.createElement('button');
+      btnManual.type = 'button';
+      btnManual.textContent = 'Manual';
+      btnManual.onclick = () => enviar(id, { modo: 'manual', luz: luzAtual(id) });
+      seg.append(btnAuto, btnManual);
+
+      const info = document.createElement('div');
+      info.className = 'info';
+      const linha1 = document.createElement('div');
+      const dot = document.createElement('span');
+      dot.className = 'dot';
+      const disp = document.createElement('span');
+      linha1.append(dot, disp);
+      const mov = document.createElement('div');
+      const tempoTxt = document.createElement('div');
+      info.append(linha1, mov, tempoTxt);
+
+      // Ajuste do tempo do modo automático (só o admin vê)
+      const tempoBox = document.createElement('div');
+      tempoBox.className = 'tempo hide';
+      const rotulo = document.createElement('label');
+      rotulo.textContent = 'Tempo aceso no automático (segundos)';
+      rotulo.htmlFor = 'tempo-' + id;
+      const linhaT = document.createElement('div');
+      linhaT.className = 'linha';
+      const tempoInput = document.createElement('input');
+      tempoInput.id = 'tempo-' + id;
+      tempoInput.type = 'number';
+      tempoInput.min = 5;
+      tempoInput.max = 3600;
+      tempoInput.inputMode = 'numeric';
+      tempoInput.oninput = () => { refs[id].sujo = true; };
+      const btnTempo = document.createElement('button');
+      btnTempo.type = 'button';
+      btnTempo.className = 'mini ok';
+      btnTempo.textContent = 'Salvar';
+      btnTempo.onclick = () => salvarTempo(id);
+      linhaT.append(tempoInput, btnTempo);
+      tempoBox.append(rotulo, linhaT);
+
+      card.append(h, lamp, seg, info, tempoBox);
+      $('grade').appendChild(card);
+      refs[id] = { card, lamp, btnAuto, btnManual, dot, disp, mov, tempoTxt, tempoBox, tempoInput, sujo: false, nome };
+    });
+  }
+
+  function render() {
+    COMODOS.forEach(([id]) => {
+      const r = refs[id];
+      if (!r) return;
+      const c = cmdDe(id);
+      const acesa = luzAtual(id);
+      const on = online(id);
+      r.card.classList.toggle('on', acesa);
+      r.btnAuto.classList.toggle('sel', c.modo === 'auto');
+      r.btnManual.classList.toggle('sel', c.modo === 'manual');
+      r.lamp.disabled = c.modo === 'auto';
+      r.lamp.textContent = c.modo === 'auto' ? (acesa ? 'Acesa' : 'Sensor') : (acesa ? 'Desligar' : 'Ligar');
+      r.lamp.setAttribute('aria-label', r.nome + ': ' + (acesa ? 'acesa' : 'apagada'));
+      r.dot.classList.toggle('ok', !!on);
+      r.disp.textContent = on ? 'Conectado' : 'Dispositivo offline';
+      r.mov.textContent = !on ? '' : (c.modo === 'auto' ? (st[id].movimento ? 'Movimento detectado' : 'Sem movimento') : 'Controle manual');
+      const seg = c.tempo_auto_seg || 120;
+      r.tempoTxt.textContent = c.modo === 'auto' ? 'Apaga após ' + fmtTempo(seg) + ' sem movimento' : '';
+      r.tempoBox.classList.toggle('hide', !(perfilAtual && perfilAtual.admin));
+      if (!r.sujo) r.tempoInput.value = seg;
+    });
+  }
+
+  async function salvarTempo(id) {
+    const r = refs[id];
+    const v = parseInt(r.tempoInput.value, 10);
+    if (!(v >= 5 && v <= 3600)) {
+      $('erroApp').textContent = 'Informe um tempo entre 5 e 3600 segundos.';
+      return;
+    }
+    if (await enviar(id, { tempo_auto_seg: v })) r.sujo = false;
+    render();
+  }
+
+  async function carregar() {
+    const [c, s] = await Promise.all([
+      db.from('comando').select('*'),
+      db.from('status').select('*')
+    ]);
+    (c.data || []).forEach(l => { cmd[l.id] = l; });
+    (s.data || []).forEach(l => { st[l.id] = l; });
+    render();
+  }
+
+  async function enviar(id, campos) {
+    $('erroApp').textContent = '';
+    const { data: { user } } = await db.auth.getUser();
+    const { data, error } = await db.from('comando')
+      .update({ ...campos, atualizado_por: user.email, atualizado_em: new Date().toISOString() })
+      .eq('id', id)
+      .select();
+    if (error) { $('erroApp').textContent = 'Não foi possível enviar o comando: ' + error.message; return false; }
+    if (!data || !data.length) { $('erroApp').textContent = 'Seu acesso não permite controlar a luz.'; return false; }
+    cmd[id] = data[0];
+    render();
+    return true;
+  }
+
+  function fmtTempo(s) {
+    const m = Math.floor(s / 60), r = s % 60;
+    return m ? (r ? m + ' min ' + r + ' s' : m + ' min') : r + ' s';
+  }
+
+  // ---------- Telas ----------
+  function iniciarApp(perfil) {
+    $('telaLogin').classList.add('hide');
+    $('telaEspera').classList.add('hide');
+    $('telaApp').classList.remove('hide');
+    $('sub').textContent = 'Controle das luzes da casa';
+    $('painelAdmin').classList.toggle('hide', !perfil.admin);
+    if (perfil.admin) carregarUsuarios();
+    carregar();
+    if (!canal) {
+      canal = db.channel('luzes')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'comando' }, p => { cmd[p.new.id] = p.new; render(); })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'status' }, p => { st[p.new.id] = p.new; render(); })
+        .subscribe();
+    }
+  }
+
+  function mostrarEspera(recusado) {
+    $('telaLogin').classList.add('hide');
+    $('telaApp').classList.add('hide');
+    $('telaEspera').classList.remove('hide');
+    $('sub').textContent = recusado ? 'Acesso recusado' : 'Aguardando aprovação';
+    $('msgEspera').textContent = recusado
+      ? 'O administrador recusou este cadastro. Você não pode controlar as luzes.'
+      : 'Seu cadastro foi enviado. Assim que o administrador aprovar, esta tela abre sozinha.';
+  }
+
+  function mostrarLogin() {
+    perfilAtual = null;
+    $('telaEspera').classList.add('hide');
+    $('telaApp').classList.add('hide');
+    $('telaLogin').classList.remove('hide');
+    $('sub').textContent = 'Entre para controlar a iluminação';
+    if (canal) { db.removeChannel(canal); canal = null; }
+  }
+
+  async function verificarAcesso() {
+    const { data: { user } } = await db.auth.getUser();
+    if (!user) { mostrarLogin(); return; }
+    const { data: perfil } = await db.from('perfis').select('*').eq('id', user.id).maybeSingle();
+    perfilAtual = perfil;
+    if (perfil && perfil.situacao === 'aprovado') {
+      if ($('telaApp').classList.contains('hide')) iniciarApp(perfil);
+    } else {
+      if (canal) { db.removeChannel(canal); canal = null; }
+      mostrarEspera(perfil && perfil.situacao === 'recusado');
+    }
+  }
+
+  // ---------- Painel do admin ----------
+  async function carregarUsuarios() {
+    const { data } = await db.from('perfis').select('*').order('criado_em');
+    const ordem = { pendente: 0, aprovado: 1, recusado: 2 };
+    const outros = (data || []).filter(p => p.id !== perfilAtual.id)
+      .sort((a, b) => ordem[a.situacao] - ordem[b.situacao]);
+    const pendentes = outros.filter(p => p.situacao === 'pendente').length;
+    $('tituloAdmin').textContent = pendentes ? 'Cadastros (' + pendentes + ' pendentes)' : 'Cadastros';
+
+    const lista = $('listaUsuarios');
+    lista.textContent = '';
+    if (!outros.length) {
+      const v = document.createElement('div');
+      v.className = 'vazio';
+      v.textContent = 'Nenhum outro cadastro ainda.';
+      lista.appendChild(v);
+      return;
+    }
+    outros.forEach(p => {
+      const linha = document.createElement('div');
+      linha.className = 'usr';
+      const quem = document.createElement('div');
+      quem.className = 'quem';
+      quem.textContent = p.email;
+      const sit = document.createElement('small');
+      sit.textContent = p.situacao;
+      quem.appendChild(sit);
+      const acoes = document.createElement('div');
+      acoes.className = 'acoes';
+      if (p.situacao !== 'aprovado') acoes.appendChild(botaoDecisao('Aprovar', 'aprovado', p.id, true));
+      if (p.situacao !== 'recusado') acoes.appendChild(botaoDecisao(p.situacao === 'aprovado' ? 'Revogar' : 'Recusar', 'recusado', p.id, false));
+      linha.append(quem, acoes);
+      lista.appendChild(linha);
+    });
+  }
+
+  function botaoDecisao(texto, situacao, id, destaque) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'mini' + (destaque ? ' ok' : '');
+    b.textContent = texto;
+    b.onclick = async () => {
+      const { error } = await db.from('perfis').update({ situacao }).eq('id', id);
+      if (error) $('erroApp').textContent = 'Erro: ' + error.message;
+      carregarUsuarios();
+    };
+    return b;
+  }
+
+  // ---------- Login e cadastro ----------
+  $('alternar').onclick = () => {
+    criandoConta = !criandoConta;
+    $('btnEntrar').textContent = criandoConta ? 'Criar conta' : 'Entrar';
+    $('alternar').textContent = criandoConta ? 'Já tenho conta' : 'Criar uma conta';
+    $('msg').textContent = '';
+  };
+
+  $('formLogin').onsubmit = async e => {
+    e.preventDefault();
+    $('msg').textContent = '';
+    const dados = { email: $('email').value.trim(), password: $('senha').value };
+    const { error } = criandoConta ? await db.auth.signUp(dados) : await db.auth.signInWithPassword(dados);
+    if (error) { $('msg').textContent = error.message; return; }
+    if (criandoConta) $('msg').textContent = 'Conta criada. Se o Supabase pedir confirmação, verifique seu e-mail. Depois, aguarde a aprovação do administrador.';
+  };
+
+  $('sair').onclick = () => db.auth.signOut();
+  $('sairEspera').onclick = () => db.auth.signOut();
+
+  construirCards();
+
+  // setTimeout evita travar o cliente ao chamar o banco dentro deste evento
+  db.auth.onAuthStateChange((_evento, sessao) => {
+    if (sessao) setTimeout(verificarAcesso, 0); else mostrarLogin();
+  });
+
+  // Atualiza a cada 5 s: dispositivos offline, novos cadastros e aprovação
+  setInterval(() => {
+    if (!$('telaApp').classList.contains('hide')) {
+      carregar();
+      if (perfilAtual && perfilAtual.admin) carregarUsuarios();
+    } else if (!$('telaEspera').classList.contains('hide')) {
+      verificarAcesso();
+    }
+  }, 5000);
+</script>
+</body>
+</html>
