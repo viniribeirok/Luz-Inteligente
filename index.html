@@ -54,6 +54,8 @@
   .tempo .linha { display:flex; gap:6px; }
   .tempo input { width:100%; min-width:0; padding:8px 10px; font-size:14px; }
   .tempo .mini { flex-shrink:0; }
+  @keyframes pulsa { 50% { opacity:.55; } }
+  .card.pend .lamp { animation:pulsa 1s ease-in-out infinite; }
   #erroApp { color:#ff9b8a; margin-top:14px; min-height:20px; }
 
   /* Painel do admin */
@@ -212,17 +214,22 @@
       const r = refs[id];
       if (!r) return;
       const c = cmdDe(id);
-      const acesa = luzAtual(id);
       const on = online(id);
+      // Manual: mostra o comando na hora; "pendente" até o dispositivo confirmar o estado real
+      const pendente = on && c.modo === 'manual' && st[id].luz !== c.luz;
+      const acesa = c.modo === 'manual' ? c.luz : luzAtual(id);
       r.card.classList.toggle('on', acesa);
+      r.card.classList.toggle('pend', pendente);
       r.btnAuto.classList.toggle('sel', c.modo === 'auto');
       r.btnManual.classList.toggle('sel', c.modo === 'manual');
       r.lamp.disabled = c.modo === 'auto';
-      r.lamp.textContent = c.modo === 'auto' ? (acesa ? 'Acesa' : 'Sensor') : (acesa ? 'Desligar' : 'Ligar');
+      r.lamp.textContent = c.modo === 'auto' ? (acesa ? 'Acesa' : 'Sensor')
+        : (pendente ? 'Enviando...' : (acesa ? 'Desligar' : 'Ligar'));
       r.lamp.setAttribute('aria-label', r.nome + ': ' + (acesa ? 'acesa' : 'apagada'));
       r.dot.classList.toggle('ok', !!on);
       r.disp.textContent = on ? 'Conectado' : 'Dispositivo offline';
-      r.mov.textContent = !on ? '' : (c.modo === 'auto' ? (st[id].movimento ? 'Movimento detectado' : 'Sem movimento') : 'Controle manual');
+      r.mov.textContent = !on ? '' : (pendente ? 'Aguardando o dispositivo...'
+        : (c.modo === 'auto' ? (st[id].movimento ? 'Movimento detectado' : 'Sem movimento') : 'Controle manual'));
       const seg = c.tempo_auto_seg || 120;
       r.tempoTxt.textContent = c.modo === 'auto' ? 'Apaga após ' + fmtTempo(seg) + ' sem movimento' : '';
       r.tempoBox.classList.toggle('hide', !(perfilAtual && perfilAtual.admin));
